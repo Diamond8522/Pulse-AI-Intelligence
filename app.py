@@ -49,44 +49,46 @@ def get_ai_summary(topic, headlines):
     return completion.choices[0].message.content
 
 def create_pdf(topic, summary, df):
-    """Generates a PDF report with safety resets and explicit width math."""
+    """Generates a PDF report using fpdf2's native byte output."""
     pdf = FPDF()
     pdf.add_page()
-    usable_w = 190 # Standard A4 width (210mm) minus 10mm margins on both sides
+    usable_w = 190 
     
     def clean_text(text):
         if not text: return ""
+        # Ensures text is compatible with standard PDF fonts
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     # --- Header ---
-    pdf.set_font("Arial", 'B', 16)
+    pdf.set_font("Helvetica", 'B', 16)
     pdf.set_x(10)
     pdf.cell(usable_w, 10, txt=clean_text(f"ShadowPulse Intel Report: {topic.upper()}"), ln=True, align='C')
-    pdf.set_font("Arial", size=10)
+    pdf.set_font("Helvetica", size=10)
     pdf.set_x(10)
     pdf.cell(usable_w, 10, txt=f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
     
     # --- AI Summary ---
     pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
+    pdf.set_font("Helvetica", 'B', 12)
     pdf.set_x(10)
     pdf.cell(usable_w, 10, txt="Executive AI Summary:", ln=True)
-    pdf.set_font("Arial", size=11)
+    pdf.set_font("Helvetica", size=11)
     pdf.set_x(10)
     pdf.multi_cell(usable_w, 8, txt=clean_text(summary))
     
     # --- Data Section ---
     pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
+    pdf.set_font("Helvetica", 'B', 12)
     pdf.set_x(10)
     pdf.cell(usable_w, 10, txt="Source Data (Top Headlines):", ln=True)
-    pdf.set_font("Arial", size=10)
+    pdf.set_font("Helvetica", size=10)
     for _, row in df.head(8).iterrows():
         pdf.set_x(10)
         line = clean_text(f"- {row['title']} (Source: {row['source']})")
         pdf.multi_cell(usable_w, 7, txt=line)
         
-    return pdf.output(dest='S').encode('latin-1')
+    # In fpdf2, output() returns a bytearray directly. We just return it.
+    return pdf.output()
 
 # --- 4. DASHBOARD INTERFACE ---
 st.title("⚡ ShadowPulse: AI Market Intelligence")
@@ -116,10 +118,10 @@ if target:
             
             # Export Button
             try:
-                pdf_bytes = create_pdf(target, summary, df)
+                pdf_output = create_pdf(target, summary, df)
                 st.download_button(
                     label="📥 Download Briefing PDF",
-                    data=pdf_bytes,
+                    data=bytes(pdf_output), # Convert bytearray to bytes for Streamlit
                     file_name=f"ShadowPulse_{target}.pdf",
                     mime="application/pdf"
                 )
@@ -139,4 +141,4 @@ if target:
             st.error("No data found.")
 
 st.divider()
-st.caption("Shadow Labs | Strategic Intelligence Tool v1.2")
+st.caption("Shadow Labs | Strategic Intelligence Tool v1.3")
