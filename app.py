@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Professional UI Styling
+# Custom Professional Theme
 st.markdown("""
     <style>
     .stMetric { background-color: #1e2130; padding: 15px; border-radius: 10px; border: 1px solid #3e445e; }
@@ -32,20 +32,16 @@ except Exception:
 
 # --- 3. CORE LOGIC ---
 def fetch_news(topic):
-    """Real-time news retrieval."""
     try:
         with DDGS() as ddgs:
-            results = [r for r in ddgs.news(topic, max_results=10)]
-            return results
+            return [r for r in ddgs.news(topic, max_results=10)]
     except Exception as e:
         st.error(f"Search Error: {e}")
         return []
 
 def get_ai_summary(topic, headlines):
-    """AI synthesis using Llama 3.3."""
     context = "\n".join([f"- {h['title']}" for h in headlines])
     prompt = f"Analyze these headlines regarding '{topic}'. Provide a 3-sentence professional summary of risks and opportunities:\n{context}"
-    
     completion = client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
         model="llama-3.3-70b-versatile",
@@ -53,67 +49,72 @@ def get_ai_summary(topic, headlines):
     return completion.choices[0].message.content
 
 def create_pdf(topic, summary, df):
-    """Generates a PDF report with character cleaning to prevent Unicode errors."""
+    """Generates a PDF report with safety resets and explicit width math."""
     pdf = FPDF()
     pdf.add_page()
+    usable_w = 190 # Standard A4 width (210mm) minus 10mm margins on both sides
     
     def clean_text(text):
         if not text: return ""
-        # Replaces characters that the standard PDF fonts can't handle
         return text.encode('latin-1', 'replace').decode('latin-1')
 
-    # Header
+    # --- Header ---
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt=clean_text(f"ShadowPulse Intel Report: {topic.upper()}"), ln=True, align='C')
+    pdf.set_x(10)
+    pdf.cell(usable_w, 10, txt=clean_text(f"ShadowPulse Intel Report: {topic.upper()}"), ln=True, align='C')
     pdf.set_font("Arial", size=10)
-    pdf.cell(200, 10, txt=f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
+    pdf.set_x(10)
+    pdf.cell(usable_w, 10, txt=f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
     
-    # AI Summary Section
+    # --- AI Summary ---
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, txt="Executive AI Summary:", ln=True)
+    pdf.set_x(10)
+    pdf.cell(usable_w, 10, txt="Executive AI Summary:", ln=True)
     pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 8, txt=clean_text(summary))
+    pdf.set_x(10)
+    pdf.multi_cell(usable_w, 8, txt=clean_text(summary))
     
-    # Data Section
+    # --- Data Section ---
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, txt="Source Data (Top Headlines):", ln=True)
+    pdf.set_x(10)
+    pdf.cell(usable_w, 10, txt="Source Data (Top Headlines):", ln=True)
     pdf.set_font("Arial", size=10)
     for _, row in df.head(8).iterrows():
-        headline = clean_text(f"- {row['title']} (Source: {row['source']})")
-        pdf.multi_cell(0, 7, txt=headline)
+        pdf.set_x(10)
+        line = clean_text(f"- {row['title']} (Source: {row['source']})")
+        pdf.multi_cell(usable_w, 7, txt=line)
         
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 4. DASHBOARD INTERFACE ---
 st.title("⚡ ShadowPulse: AI Market Intelligence")
-st.caption("Strategic signals extracted from live global data via Shadow Labs.")
+st.caption("Strategic signals extracted from live global data.")
 
 target = st.text_input("Analysis Target", placeholder="e.g. NVIDIA, Bitcoin, or Generative AI")
 
 if target:
     with st.spinner(f"Agent Shadow intercepting data for {target}..."):
         raw_data = fetch_news(target)
-        
         if raw_data:
             df = pd.DataFrame(raw_data)
             df['sentiment'] = df['title'].apply(lambda x: TextBlob(x).sentiment.polarity)
             avg_sent = df['sentiment'].mean()
             
-            # --- Metrics ---
+            # Metrics
             m1, m2, m3 = st.columns(3)
             status = "Bullish" if avg_sent > 0.05 else "Bearish" if avg_sent < -0.05 else "Neutral"
             m1.metric("Market Sentiment", f"{avg_sent:.2f}", status)
             m2.metric("Signals Scoped", len(df))
             m3.metric("Analysis", "Verified", "AI Engine Active")
 
-            # --- AI Summary ---
+            # AI Summary
             st.subheader("🤖 Executive Briefing")
             summary = get_ai_summary(target, raw_data)
             st.info(summary)
             
-            # PDF Download Button Block
+            # Export Button
             try:
                 pdf_bytes = create_pdf(target, summary, df)
                 st.download_button(
@@ -123,21 +124,19 @@ if target:
                     mime="application/pdf"
                 )
             except Exception as e:
-                st.error(f"PDF Generation issue: {e}")
+                st.error(f"PDF Logic Error: {e}")
 
-            # --- Visuals ---
-            tab1, tab2 = st.tabs(["📊 Sentiment Analysis", "📡 Raw Intel Feed"])
-            
+            # Visuals
+            tab1, tab2 = st.tabs(["📊 Sentiment Analysis", "📡 Raw Feed"])
             with tab1:
                 fig = px.bar(df, x='title', y='sentiment', color='sentiment', 
                              color_continuous_scale='RdYlGn', template="plotly_dark")
                 fig.update_layout(xaxis_showticklabels=False, height=400)
                 st.plotly_chart(fig, use_container_width=True)
-            
             with tab2:
                 st.dataframe(df[['title', 'source', 'date', 'url']], use_container_width=True)
         else:
-            st.error("No data found for this target.")
+            st.error("No data found.")
 
 st.divider()
-st.caption("Shadow Labs | Strategic Intelligence Tool v1.1")
+st.caption("Shadow Labs | Strategic Intelligence Tool v1.2")
