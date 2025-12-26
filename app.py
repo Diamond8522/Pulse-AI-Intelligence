@@ -1,24 +1,4 @@
-def create_pdf(topic, summary, df):
-    """Generates a downloadable PDF report with character cleaning."""
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Helper to clean text for Latin-1 compatibility
-    def clean_text(text):
-        if not text: return ""
-        # Replaces complex characters with simple equivalents or removes them
-        return text.encode('latin-1', 'replace').decode('latin-1')
-
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt=clean_text(f"ShadowPulse Intelligence: {topic.upper()}"), ln=True, align='C')
-    
-    pdf.set_font("Arial", size=10)
-    pdf.cell(200, 10, txt=f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, txt="Executive AI Summary:", ln=True)
-    import streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from duckduckgo_search import DDGS
@@ -77,10 +57,9 @@ def create_pdf(topic, summary, df):
     pdf = FPDF()
     pdf.add_page()
     
-    # Helper to clean text for Latin-1 compatibility (FPDF default font requirement)
     def clean_text(text):
         if not text: return ""
-        # This replaces symbols like ’ or — with characters the PDF can handle
+        # Replaces characters that the standard PDF fonts can't handle
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     # Header
@@ -134,7 +113,7 @@ if target:
             summary = get_ai_summary(target, raw_data)
             st.info(summary)
             
-            # PDF Download Button
+            # PDF Download Button Block
             try:
                 pdf_bytes = create_pdf(target, summary, df)
                 st.download_button(
@@ -161,20 +140,4 @@ if target:
             st.error("No data found for this target.")
 
 st.divider()
-st.caption("Shadow Labs | v1.1 Deployment Successful")
-    pdf.set_font("Arial", size=11)
-    # Cleaning the summary before writing
-    pdf.multi_cell(0, 8, txt=clean_text(summary))
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, txt="Top Headlines Analyzed:", ln=True)
-    
-    pdf.set_font("Arial", size=10)
-    for _, row in df.head(8).iterrows():
-        # Cleaning headlines too
-        headline = clean_text(f"- {row['title']} (Source: {row['source']})")
-        pdf.multi_cell(0, 7, txt=headline)
-        
-    return pdf.output(dest='S').encode('latin-1')
-
+st.caption("Shadow Labs | Strategic Intelligence Tool v1.1")
